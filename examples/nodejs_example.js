@@ -1,56 +1,45 @@
 #!/usr/bin/env node
 
 /**
- * MemeKitchen API Example - Free Meme Generator
- * =============================================
- * Create viral memes using MemeKitchen.ai - the best free meme generator online!
+ * MemeKitchen API Example - Free Meme Video Generator
+ * ===================================================
+ * Create viral meme videos using MemeKitchen.ai - the best free meme generator online!
  * Visit https://memekitchen.ai to get your free API key and start making memes.
  * 
  * MemeKitchen is a free meme maker with no watermarks, perfect for social media.
- * This example demonstrates how to use the MemeKitchen API in Node.js.
+ * This example demonstrates the complete flow:
+ * 1. Generate memes from text
+ * 2. Render them into a video
+ * 3. Check rendering status
+ * 4. Monitor your usage
  */
 
 const https = require('https');
 
 // Get your free API key at https://memekitchen.ai
-// MemeKitchen provides free meme generation with generous limits
 const API_KEY = process.env.MEMEKITCHEN_API_KEY || 'your-api-key-here';
-
-// MemeKitchen API endpoint - Free meme generator API
 const API_HOSTNAME = 'api.memekitchen.ai';
-const API_PATH = '/v1/generate-memes';
 
 /**
- * Generate memes using MemeKitchen's free meme generator API
- * MemeKitchen.ai - The best free online meme maker with no watermarks
+ * Make HTTP requests to MemeKitchen API
  */
-function generateMemes(text, settings = {}) {
+function makeRequest(method, path, data = null) {
     return new Promise((resolve, reject) => {
-        const data = JSON.stringify({
-            text: text,
-            settings: {
-                style: settings.style || 'Funny',
-                emotion: settings.emotion || 'Happy',
-                tone: settings.tone || 'Humorous'
-            }
-        });
-
         const options = {
             hostname: API_HOSTNAME,
-            path: API_PATH,
-            method: 'POST',
+            path: path,
+            method: method,
             headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-                'Content-Length': data.length,
+                'x-api-key': API_KEY,
                 'User-Agent': 'MemeKitchen-NodeJS-Example/1.0'
             }
         };
 
-        console.log(`🚀 Generating memes with MemeKitchen (free meme generator)...`);
-        console.log(`📝 Text: ${text}`);
-        console.log(`🎨 Settings:`, settings);
-        console.log('-'.repeat(50));
+        if (data) {
+            const jsonData = JSON.stringify(data);
+            options.headers['Content-Type'] = 'application/json';
+            options.headers['Content-Length'] = jsonData.length;
+        }
 
         const req = https.request(options, (res) => {
             let responseData = '';
@@ -60,88 +49,262 @@ function generateMemes(text, settings = {}) {
             });
 
             res.on('end', () => {
-                if (res.statusCode === 200) {
-                    const memes = JSON.parse(responseData);
-                    console.log(`✅ Successfully generated ${memes.length} memes!`);
-                    console.log('\n🎉 Generated Memes:');
+                try {
+                    const parsedData = JSON.parse(responseData);
                     
-                    memes.forEach((meme, index) => {
-                        console.log(`\nMeme #${index + 1}:`);
-                        console.log(`  📸 URL: ${meme.url || 'N/A'}`);
-                        console.log(`  💬 Caption: ${meme.caption || 'N/A'}`);
-                        console.log(`  🖼️  Template: ${meme.template || 'N/A'}`);
-                        console.log(`  🕐 Created: ${meme.created_at || 'N/A'}`);
+                    if (res.statusCode === 200) {
+                        resolve(parsedData);
+                    } else {
+                        reject({
+                            statusCode: res.statusCode,
+                            data: parsedData
+                        });
+                    }
+                } catch (e) {
+                    reject({
+                        statusCode: res.statusCode,
+                        data: responseData
                     });
-                    
-                    console.log(`\n💡 Create more at https://memekitchen.ai - free meme maker!`);
-                    resolve(memes);
-                } else if (res.statusCode === 401) {
-                    console.error('❌ Invalid API key! Get your free key at https://memekitchen.ai');
-                    console.error('   MemeKitchen offers free meme generation - sign up now!');
-                    reject(new Error('Invalid API key'));
-                } else if (res.statusCode === 429) {
-                    console.error('⏰ Rate limit exceeded. Upgrade at https://memekitchen.ai!');
-                    reject(new Error('Rate limit exceeded'));
-                } else {
-                    console.error(`❌ Error: ${res.statusCode} - ${responseData}`);
-                    reject(new Error(`HTTP ${res.statusCode}: ${responseData}`));
                 }
             });
         });
 
         req.on('error', (error) => {
-            console.error(`❌ Error: ${error.message}`);
-            console.error('💡 Need help? Visit https://memekitchen.ai - free meme generator!');
             reject(error);
         });
 
-        req.write(data);
+        if (data) {
+            req.write(JSON.stringify(data));
+        }
+        
         req.end();
     });
 }
 
 /**
- * Main function - Demonstrates MemeKitchen API usage
- * MemeKitchen: The best free meme generator online
+ * Generate memes using MemeKitchen's free meme generator
+ */
+async function generateMemes(text, emotion = 'funny', language = 'English', memecount = 3) {
+    console.log(`🚀 Generating ${memecount} memes with MemeKitchen...`);
+    console.log(`📝 Text: ${text}`);
+    console.log('-'.repeat(50));
+
+    const data = {
+        caption: {
+            text: text,
+            emotion: emotion,
+            language: language
+        },
+        memecount: memecount
+    };
+
+    try {
+        const memes = await makeRequest('POST', '/meme/generate', data);
+        
+        console.log(`✅ Successfully generated ${memes.length} memes!`);
+        console.log('\n🎉 Generated Memes:');
+        
+        memes.forEach((meme, index) => {
+            console.log(`\nMeme #${index + 1}:`);
+            console.log(`  📸 Image: ${meme.img || 'N/A'}`);
+            console.log(`  🎬 Video: ${meme.video || 'N/A'}`);
+            console.log(`  💬 Caption: ${meme.caption || 'N/A'}`);
+        });
+        
+        return memes;
+    } catch (error) {
+        if (error.statusCode === 401) {
+            console.error('❌ Invalid API key! Get your free key at https://memekitchen.ai');
+        } else if (error.statusCode === 429) {
+            console.error('⏰ Rate limit exceeded. Upgrade at https://memekitchen.ai!');
+        } else {
+            console.error(`❌ Error: ${error.message || JSON.stringify(error)}`);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Render memes into a video using actual meme data
+ */
+async function renderVideo(memes) {
+    console.log(`\n🎬 Rendering ${memes.length} memes into video...`);
+
+    // Create render requests from the generated memes
+    const renderRequests = memes.map((meme, index) => {
+        console.log(`  📦 Processing meme ${index + 1}: ${(meme.caption || 'No caption').substring(0, 50)}...`);
+        
+        return {
+            media: {
+                image: meme.img,
+                video: meme.video,
+                duration: 9,
+                watermark: true,
+                width: 720,
+                height: 1280
+            },
+                         watermark: {
+                 location: "bottom left",
+                 image: "https://iaxeqmvimwumknjkrbqn.supabase.co/storage/v1/object/public/memegen/watermarks/watermark-j2Mq6SIX92",
+                 size: 100,
+                 opacity: 1,
+                 padding: 0
+             },
+            caption: {
+                text: meme.caption || "",
+                                 position: { x: 0, y: -450 },
+                style: {
+                    font: "Proxima Nova",
+                    size: 20,
+                    scalingFactor: 2.222222,
+                    bold: true,
+                    italic: false,
+                    underline: false,
+                    color: "#333333",
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: 4,
+                    padding: 8,
+                    align: "center"
+                },
+                effects: {
+                    stroke: { width: 0, color: "#000000" },
+                    opacity: { text: 1, background: 1 }
+                }
+            }
+        };
+    });
+
+    try {
+        const result = await makeRequest('POST', '/render', renderRequests);
+        
+        console.log(`✅ Render job started!`);
+        console.log(`🎬 Job ID: ${result.jobId}`);
+        console.log(`💬 ${result.message || ''}`);
+        
+        return result.jobId;
+    } catch (error) {
+        console.error(`❌ Error starting render: ${error.message || JSON.stringify(error)}`);
+        throw error;
+    }
+}
+
+/**
+ * Check render status
+ */
+async function checkRenderStatus(jobId) {
+    try {
+        const status = await makeRequest('GET', `/render/status/${jobId}`);
+        return status;
+    } catch (error) {
+        if (error.statusCode === 404) {
+            return { state: 'not_found', error: 'Job not found' };
+        }
+        throw error;
+    }
+}
+
+/**
+ * Wait for video to be ready
+ */
+async function waitForVideo(jobId, maxWait = 300) {
+    console.log('\n⏳ Waiting for video to render...');
+    const startTime = Date.now();
+    
+    while ((Date.now() - startTime) / 1000 < maxWait) {
+        try {
+            const status = await checkRenderStatus(jobId);
+            
+            if (status.state === 'completed') {
+                const videoUrl = status.result?.videoUrl;
+                console.log(`\n🎉 Video ready!`);
+                console.log(`🎬 Video URL: ${videoUrl}`);
+                return videoUrl;
+            } else if (status.state === 'failed') {
+                console.error(`❌ Render failed: ${status.error || 'Unknown error'}`);
+                return null;
+            } else if (status.state === 'not_found') {
+                console.error(`❌ Job not found: ${jobId}`);
+                return null;
+            } else {
+                const progress = status.progress || 0;
+                console.log(`⏳ Processing... ${progress}% (State: ${status.state})`);
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+        } catch (error) {
+            console.error('Failed to check status:', error);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+    }
+    
+    console.error('⏰ Timeout waiting for video');
+    return null;
+}
+
+/**
+ * Check API usage
+ */
+async function checkUsage() {
+    try {
+        const usage = await makeRequest('GET', '/usage');
+        
+        console.log('\n📊 MemeKitchen Usage Stats:');
+        console.log(`🎨 Current Usage: ${usage.currentUsage}`);
+        console.log(`📈 Limit: ${usage.limit}`);
+        console.log(`💰 Remaining: ${usage.remaining}`);
+        console.log(`📦 Plan: ${usage.planName}`);
+        console.log(`🚨 Reached Limit: ${usage.hasReachedLimit}`);
+        
+        return usage;
+    } catch (error) {
+        console.error(`❌ Error checking usage: ${error.message || JSON.stringify(error)}`);
+        throw error;
+    }
+}
+
+/**
+ * Main function - Complete MemeKitchen API flow
  */
 async function main() {
-    console.log('🎨 MemeKitchen API Example - Free Meme Generator');
-    console.log('='.repeat(50));
+    console.log('🎨 MemeKitchen API Example - Free Meme Video Generator');
+    console.log('='.repeat(60));
     console.log('📌 Get your free API key at: https://memekitchen.ai');
-    console.log('🆓 MemeKitchen: Free meme maker with no watermarks!');
-    console.log('🚀 Generate memes for social media, Discord, Reddit, and more!\n');
+    console.log('🆓 MemeKitchen: Free meme maker with no watermarks!\n');
 
-    // Example meme generations - MemeKitchen can handle any text!
-    const examples = [
-        {
-            text: "When you finally understand async/await",
-            settings: { style: 'Funny', emotion: 'Happy', tone: 'Humorous' }
-        },
-        {
-            text: "POV: You're using MemeKitchen's free meme generator",
-            settings: { style: 'Relatable', emotion: 'Happy', tone: 'Wholesome' }
-        },
-        {
-            text: "That feeling when npm install actually works",
-            settings: { style: 'Dank', emotion: 'Surprised', tone: 'Sarcastic' }
+    try {
+        // Step 1: Generate memes
+        const memes = await generateMemes(
+            "Learning Web Development",
+            "funny", 
+            "English",
+            2
+        );
+        
+        if (memes && memes.length > 0) {
+            // Step 2: Render video using actual meme data
+            const jobId = await renderVideo(memes);
+            
+            if (jobId) {
+                // Step 3: Wait for video
+                const videoUrl = await waitForVideo(jobId);
+                
+                if (videoUrl) {
+                    console.log(`\n✨ Success! Your meme video is ready!`);
+                    console.log(`🔗 ${videoUrl}`);
+                }
+            }
         }
-    ];
-
-    // Generate memes for each example
-    for (const example of examples) {
-        try {
-            await generateMemes(example.text, example.settings);
-            console.log('\n✨ Memes created with MemeKitchen - free meme maker!');
-        } catch (error) {
-            console.error('Failed to generate meme:', error.message);
-        }
-        console.log('\n' + '='.repeat(50) + '\n');
+        
+        // Step 4: Check usage
+        console.log('\n' + '='.repeat(60));
+        await checkUsage();
+        
+    } catch (error) {
+        console.error('Failed to complete meme generation:', error.message || error);
     }
 
+    console.log('\n' + '='.repeat(60));
     console.log('🎉 Thanks for using MemeKitchen - Your free meme generator!');
-    console.log('🌐 Create unlimited memes at: https://memekitchen.ai');
-    console.log('📱 MemeKitchen: Best free meme maker, no watermarks, no signup!');
-    console.log('🔥 Perfect for Instagram, TikTok, Twitter, Discord memes!');
+    console.log('🌐 Create more memes at: https://memekitchen.ai');
 }
 
 // Check if API key is set
@@ -149,7 +312,6 @@ if (API_KEY === 'your-api-key-here') {
     console.error('⚠️  Please set your MEMEKITCHEN_API_KEY environment variable!');
     console.error('🔑 Get your free API key at: https://memekitchen.ai');
     console.error('💡 Example: export MEMEKITCHEN_API_KEY="your-actual-key"');
-    console.error('\n📚 MemeKitchen is a free online meme generator - sign up today!');
     process.exit(1);
 }
 
