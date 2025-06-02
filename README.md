@@ -17,8 +17,8 @@ Welcome to the MemeKitchen API examples directory! These examples demonstrate ho
 
 These examples use the current API endpoints and data structures:
 
-- **[`python_example.py`](python_example.py)** - 🐍 Complete Python implementation 
-- **[`nodejs_example.js`](nodejs_example.js)** - 🟨 Node.js with native HTTPS
+- **[`python_example.py`](examples/python_example.py)** - 🐍 Complete Python implementation 
+- **[`nodejs_example.js`](examples/nodejs_example.js)** - 🟨 Node.js with native HTTPS
 
 
 ## 🛠️ API Flow
